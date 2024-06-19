@@ -2,6 +2,9 @@ package com.mysite.sbb;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -12,6 +15,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity   // 스프링 시큐리티 필터가 스프링 필터체인에 등록이 된다.
+@EnableMethodSecurity(prePostEnabled =true)
 public class SecurityConfig {
 
    @Bean
@@ -22,14 +26,26 @@ public class SecurityConfig {
             .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
       .headers(headers -> headers
             .addHeaderWriter(new XFrameOptionsHeaderWriter(
-               XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)));
+               XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)))
+      .formLogin(formLogin -> formLogin
+            .loginPage("/user/login")
+            .defaultSuccessUrl("/"))
+      .logout(logout -> logout
+              .logoutRequestMatcher(new AntPathRequestMatcher("/user/logout"))  // 로그아웃 url
+              .logoutSuccessUrl("/")  // 로그아웃 성공하면 루트로 이동
+              .invalidateHttpSession(true));  // 로그아웃하면 생성된 사용자의 세션도 삭제하도록 해라
       
       return http.build();
    }
    
-   @Bean  // IoC로 등록
+   @Bean   // Ioc(Inversion of Control)로 등록.
    PasswordEncoder passwordEncoder() {
-	   return new BCryptPasswordEncoder();
+      return new BCryptPasswordEncoder();
+   }
+   
+   @Bean  // 스프링 시큐리티의 인증을 처리, UserSecurityService와 PasswordEncoder를 내부적으로 사용하여 인증과 권한 부여를 처리한다
+   AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+	   return authenticationConfiguration.getAuthenticationManager();
    }
 
 }
